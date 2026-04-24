@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+# Ignore runtime overlay and mods data, but allow Python source files
+injection/overlay/*
+!injection/overlay/
+!injection/overlay/*.py
+!injection/overlay/__init__.py
+injection/mods/*
+!injection/mods/
+!injection/mods/*.py
+!injection/mods/__init__.py
+skins/*
+logs/*
+
+# Installer artifacts
+build/
+develop-eggs/
+dist/
+dist_updater/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.csv
+MANIFEST
+
+# PyInstaller / Nuitka build outputs
+main.build/
+main.dist/
+main.exe
+main.bin
+updater.exe
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE / Editor
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# Local / temp
+vibeship-ai-fix-prompt-383e53c2-917d-4722-b35e-0f17148c8af5.txt
+temp_fix.txt
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Application specific
+# Note: injection/mods/ and injection/overlay/ Python source files are tracked
+# Only runtime data in these directories is ignored (see Python section above)
+injection/tools/hashes.game.txt
+
+state/*.json
+state/*.lock
+*.log
+logs/
+
+# Allow Pengu Loader assets to be tracked
+!Pengu Loader/**
+
+# Installer
+installer/
+Output/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+license.dat
+config.ini
+injection/tools/hashes.game.txt
+Pengu Loader/datastore
+injection/tools/.hashes_state.json
+
+chroma_issue.txt
+CLAUDE.md
+injection/tools/cslol-dll.dll
+Pengu Loader/rose.log
+
+# Test artifacts
+test_party_punch.py
+test_party_relay.py
+Rose_PunchTest*.spec
+Rose_PartyTest.spec
+relay_server.py
+
+# Relay config (contains Worker URL — keep secret)
+party/network/relay_config.py
+
+# Skin encryption (developer-only, contains secrets & protocol logic)
+tools/
+utils/crypto/skin_config.py
+utils/crypto/client_secrets.py
+utils/crypto/key_provider.py
+utils/crypto/integrity.py
+skin-key-worker/
+skin-key-server/
+
+# Cython build artifacts
+*.pyd
+*.c
+*.py.bak
+_cython_setup.py
+
+# Workers (deployed separately to Cloudflare)
+relay-worker/node_modules/
+skin-key-worker/node_modules/
+relay-worker/.wrangler/
