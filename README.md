@@ -32,7 +32,26 @@ Extract the ZIP and run:
   - no hardcoded loading-card hash override
 
 ## Loading Name Hotfix Notes
+1-Chroma without the color suffix
+Yes. We kept the chroma using display_name=english_skin_name or chroma_display_name, so the loading label uses the base skin name, not something like Azir (Pink).
 
+2-Locale without hardcoded pt_BR
+Yes. The code now uses state.lcu_language, detected from LCU. The lookup tries Global..wad.client first, for example Global.pt_BR.wad.client, Global.en_US.wad.client, etc., and only then falls back to Global.*.wad.client.
+
+3-Rebase/base with the security fix
+Partially yes in practical terms: the current Rose-main version we published preserved the clean/safe base you were using. However, since the local Rose-main was not a Git repository, it was not a formal git rebase against upstream. It was an update/sync of the working local version to your GitHub.
+
+4-Safer RST
+Partially. We improved it a lot:
+
+requires value == champion_name;
+if the key is a readable string, it only replaces when it contains/starts with game_character_displayname_;
+it does not compare the value against game_character_displayname_;
+it does not use a hardcoded hash.
+
+The caveat: for hash/int keys, there is still a fallback based on value == champion_name. It works, and it is what made the mod create _rose_loading_name_text, but it is still broader than ideal. The code itself has a TODO noting that this should be narrowed later to the exact loading-card display-name hash once that mapping is known.
+
+So in summary: Chroma yes, locale yes, safe base yes in practice, RST functional but still with a technical follow-up pending before it fully matches the maintainer’s requested standard.
 The primary path is still normal LCU skin selection. The stringtable override is a fallback for cases where the client accepts the selection but the loading screen still resolves the displayed name to the default champion name.
 
 The fallback:
