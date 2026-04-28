@@ -60,10 +60,36 @@ class InjectionManager:
         except Exception as exc:  # noqa: BLE001
             log.debug(f"[INJECT] Failed to get monitor auto-resume timeout: {exc}")
             return 60.0  # Default fallback
-    
+
     def _refresh_injection_threshold(self) -> None:
         """Reload injection threshold from config so tray changes apply immediately."""
         self.injection_threshold = self.threshold_manager.refresh()
+
+    def prepare_loading_name_stringtable_mod(self, injector, champion_name: str = None) -> Optional[str]:
+        """Create the loading-name fallback stringtable mod when a skin label is available."""
+        if not self.shared_state:
+            return None
+
+        skin_name = (getattr(self.shared_state, "selected_skin_display_name", None) or "").strip()
+        if not skin_name:
+            skin_name = (getattr(self.shared_state, "last_hovered_skin_key", None) or "").strip()
+        if not skin_name:
+            return None
+
+        try:
+            from injection.mods.loading_name_stringtable import create_loading_name_stringtable_mod
+
+            mod_path = create_loading_name_stringtable_mod(
+                game_dir=getattr(injector, "game_dir", None),
+                champion_name=champion_name or "",
+                skin_name=skin_name,
+                output_dir=getattr(injector, "mods_dir", Path()),
+                locale=getattr(self.shared_state, "lcu_language", None),
+            )
+            return mod_path.name if mod_path else None
+        except Exception as exc:  # noqa: BLE001
+            log.debug("[LoadingName] Stringtable fallback skipped: %s", exc)
+            return None
     
     def refresh_injection_threshold(self) -> float:
         """Public helper to reload injection threshold from config."""
@@ -201,7 +227,7 @@ class InjectionManager:
         # This prevents unnecessary suspension for base skins and owned skins
         pass
     
-    def inject_skin_immediately(self, skin_name: str, stop_callback=None, chroma_id: int = None, champion_name: str = None, champion_id: int = None, loading_label: str = None) -> bool:
+    def inject_skin_immediately(self, skin_name: str, stop_callback=None, chroma_id: int = None, champion_name: str = None, champion_id: int = None) -> bool:
         """Immediately inject a specific skin (with optional chroma)
         
         Args:
@@ -304,20 +330,35 @@ class InjectionManager:
                 log.info("[INJECT] Starting game monitor for injection")
                 self._start_monitor()
             
-            # Build optional callback to add party member skins to injection
+            # Build optional callback to add party member mods to injection
             extra_mods_callback = None
             if self.shared_state:
-                party_manager = getattr(self.shared_state, "party_manager", None)
-                if party_manager and getattr(party_manager, "enabled", False):
-                    try:
-                        from party.integration.injection_hook import PartyInjectionHook
-                        party_hook = PartyInjectionHook(
-                            party_manager, self.shared_state, self
-                        )
-                        if party_hook.is_enabled():
-                            extra_mods_callback = lambda inj: party_hook.prepare_party_mods(inj)
-                    except Exception as e:
-                        log.debug(f"[INJECT] Party injection hook not used: {e}")
+                def collect_extra_mods(inj):
+                    extras = []
+                    loading_name_mod = self.prepare_loading_name_stringtable_mod(
+                        inj,
+                        champion_name=champion_name,
+                    )
+                    if loading_name_mod:
+                        extras.append(loading_name_mod)
+
+                    party_manager = getattr(self.shared_state, "party_manager", None)
+                    if party_manager and getattr(party_manager, "enabled", False):
+                        try:
+                            from party.integration.injection_hook import PartyInjectionHook
+                            party_hook = PartyInjectionHook(
+                                party_manager, self.shared_state, self
+                            )
+                            if party_hook.is_enabled():
+                                party_mods = party_hook.prepare_party_mods(inj)
+                                if party_mods:
+                                    extras.extend(party_mods)
+                        except Exception as e:
+                            log.debug(f"[INJECT] Party injection hook not used: {e}")
+
+                    return extras
+
+                extra_mods_callback = collect_extra_mods
 
             # Pass the manager instance so injector can call resume_game()
             success = self.injector.inject_skin(
@@ -328,7 +369,6 @@ class InjectionManager:
                 champion_name=champion_name,
                 champion_id=champion_id,
                 extra_mods_callback=extra_mods_callback,
-                loading_label=loading_label,
             )
             
             if success:

@@ -362,7 +362,6 @@ class SwiftplayHandler:
                 self.state.ui_last_text = None
                 self.state.last_hovered_skin_id = None
                 self.state.last_hovered_skin_key = None
-                self.state.selected_skin_display_name = None
 
                 # Reset champion lock state
                 self.state.own_champion_locked = False
@@ -606,3 +605,4 @@ class SwiftplayHandler:
                 log.warning(f"[phase] Error running Swiftplay overlay: {e}")
                 import traceback
                 log.debug(f"[phase] Traceback: {traceback.format_exc()}")
+

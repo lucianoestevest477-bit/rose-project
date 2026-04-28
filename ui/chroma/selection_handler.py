@@ -30,9 +30,9 @@ class ChromaSelectionHandler:
         self.panel = panel
         self.current_skin_id = current_skin_id
 
-    def _set_selected_skin_name(self, skin_name: str) -> None:
+    def _set_selected_skin_name(self, skin_name: str, display_name: str | None = None) -> None:
         self.state.last_hovered_skin_key = skin_name
-        self.state.selected_skin_display_name = skin_name
+        self.state.selected_skin_display_name = display_name if display_name is not None else skin_name
     
     def handle_selection(self, chroma_id: int, chroma_name: str):
         """Handle chroma selection callback
@@ -425,9 +425,11 @@ class ChromaSelectionHandler:
                 if skin_data:
                     english_skin_name = skin_data.get('skinName', '')
             
-            # For chromas, append the chroma ID to the clean base skin name
             chroma_display_name = chroma_name or f"{english_skin_name} {chroma_id}"
-            self._set_selected_skin_name(chroma_display_name)
+            self._set_selected_skin_name(
+                chroma_display_name,
+                display_name=english_skin_name or chroma_display_name,
+            )
             log.debug(f"[CHROMA] Updated last_hovered_skin_key to: {self.state.last_hovered_skin_key}")
         
         log.info(f"[CHROMA] Updated last_hovered_skin_id from {self.current_skin_id} to {chroma_id}")

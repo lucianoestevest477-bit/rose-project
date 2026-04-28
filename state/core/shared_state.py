@@ -20,7 +20,7 @@ class SharedState:
     last_hovered_skin_key: Optional[str] = None
     last_hovered_skin_id: Optional[int] = None
     last_hovered_skin_slug: Optional[str] = None
-    selected_skin_display_name: Optional[str] = None  # Human-readable selected skin name for loading/injection logs
+    selected_skin_display_name: Optional[str] = None  # Human-readable selected skin name for loading display
     selected_skin_id: Optional[int] = None  # Skin ID selected in LCU (owned skin)
     owned_skin_ids: set = field(default_factory=set)  # All owned skin IDs from LCU inventory
     processed_action_ids: set = field(default_factory=set)
@@ -36,7 +36,6 @@ class SharedState:
     loadout_left0_ms: int = 0
     last_remain_ms: int = 0  # Remaining time in milliseconds
     last_hover_written: bool = False
-    loading_skin_restore_done: bool = False
     timer_lock: threading.Lock = field(default_factory=threading.Lock)
     ticker_seq: int = 0
     current_ticker: int = 0
@@ -58,6 +57,7 @@ class SharedState:
     
     # Language detection
     current_language: Optional[str] = None  # Current client language (e.g., 'en', 'fr', 'de')
+    lcu_language: Optional[str] = None  # Full LCU locale (e.g., 'en_US', 'pt_BR')
     
     # Game mode detection
     current_game_mode: Optional[str] = None  # Current game mode (ARAM, CLASSIC, SWIFT_PLAY, etc.)

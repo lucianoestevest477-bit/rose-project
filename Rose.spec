@@ -92,7 +92,7 @@ if Path('utils/crypto/skin_config.py').exists():
 else:
     print("[WARNING] utils/crypto/skin_config.py not found - skin decryption will not work")
 
-for _crypto_mod in ['client_secrets', 'integrity', 'key_provider']:
+for _crypto_mod in ['client_secrets', 'integrity']:
     _py = Path(f'utils/crypto/{_crypto_mod}.py')
     _pyd = list(Path('utils/crypto').glob(f'{_crypto_mod}*.pyd'))
     if _pyd:

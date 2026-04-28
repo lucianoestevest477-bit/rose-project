@@ -193,7 +193,7 @@ class PhaseHandler:
                 log.debug("[phase] Chroma panel destroy requested for InProgress")
             except Exception as e:
                 log.debug(f"[phase] Error destroying chroma panel: {e}")
-    
+
     def _handle_end_of_game(self):
         """Handle EndOfGame phase"""
         try:
@@ -240,4 +240,3 @@ class PhaseHandler:
         # via cleanup_swiftplay_exit() which also handles the associated
         # tracking/mods state atomically.  Clearing the flag alone would
         # leave orphaned swiftplay_extracted_mods / swiftplay_skin_tracking.
-

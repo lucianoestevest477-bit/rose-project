@@ -78,7 +78,6 @@ class SkinProcessor:
             tracking_snapshot = dict(self.shared_state.swiftplay_skin_tracking)
         self.shared_state.ui_skin_id = skin_id
         self.shared_state.last_hovered_skin_id = skin_id
-        self.shared_state.selected_skin_display_name = skin_name
 
         # Mark this champion as explicitly changed so the restore logic
         # won't override the user's choice on re-queue
@@ -132,7 +131,6 @@ class SkinProcessor:
 
         # Use the matched name from the matcher instead of the input
         self.shared_state.last_hovered_skin_key = matched_name
-        self.shared_state.selected_skin_display_name = matched_name
         log.info(
             "[SkinMonitor] Skin '%s' mapped to ID %s (key=%s)",
             skin_name,
@@ -191,4 +189,4 @@ class SkinProcessor:
         self.last_skin_name = None
         self.shared_state.ui_skin_id = None
         self.shared_state.ui_last_text = None
-        self.shared_state.selected_skin_display_name = None
+

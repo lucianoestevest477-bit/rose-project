@@ -165,10 +165,6 @@ class SkinNameResolver:
         Returns:
             Clean skin label or None
         """
-        display_name = getattr(self.state, "selected_skin_display_name", None)
-        if display_name:
-            return str(display_name).strip()
-
         raw = self.state.last_hovered_skin_key or self.state.last_hovered_skin_slug \
             or (str(self.state.last_hovered_skin_id) if self.state.last_hovered_skin_id else None)
         
@@ -212,3 +208,4 @@ class SkinNameResolver:
             return final_label
         except Exception:
             return raw or ""
+

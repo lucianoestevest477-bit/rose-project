@@ -47,6 +47,7 @@ def initialize_threads(lcu, state, args, injection_manager, skin_scraper, app_st
             # Extract language code from locale (e.g., 'en_US' -> 'en')
             language_code = language.split('_')[0] if '_' in language else language
             state.current_language = language_code
+            state.lcu_language = language
             log.info(f"[Main] Language detected and set: {language_code} (from {language})")
         else:
             log.warning("[Main] Language detection returned None")
@@ -74,4 +75,3 @@ def initialize_threads(lcu, state, args, injection_manager, skin_scraper, app_st
     app_status.mark_download_process_complete()
     
     return thread_manager, t_phase, t_ui, t_ws, t_lcu_monitor
-

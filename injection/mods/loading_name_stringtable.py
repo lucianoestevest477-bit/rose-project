@@ -1,72 +1,88 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Build a tiny CSLOL mod that overrides the localized champion display string
-used by the loading screen card.
+Build a small CSLOL fallback mod that overrides the localized champion display
+string used by the loading screen card.
+
+LCU re-selection remains the primary path for making the official loading
+screen show the chosen skin. In practice,
+PATCH /lol-champ-select/v1/session/my-selection can return 204 even for
+unowned skins, so this stringtable override is kept as a fallback when the
+client accepts the selection request but the loading-card text still resolves
+to the champion name. The source stringtable must follow the active LCU locale
+when available. The current integer-key fallback replaces entries by exact
+champion-name value and is functional, but it should be narrowed in a follow-up
+to the specific loading-card display-name hash once that mapping is known.
 """
 
-import json
 import hashlib
+import json
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Iterable
 
 from utils.core.logging import get_logger
-from utils.core.paths import get_user_data_dir
+from utils.core.paths import get_injection_dir, get_user_data_dir
 
 log = get_logger()
-
 
 RST_MAGIC = b"RST"
 RST_VERSION = 5
 RST_HASH_BITS = 38
-CACHE_VERSION = "exact-display-v2"
+CACHE_VERSION = "loading-name-locale-v1"
 
 
 def create_loading_name_stringtable_mod(
-    mods_dir: Path,
-    tools_dir: Path,
     game_dir: Path | None,
-    champion_name: str | None,
-    skin_label: str | None,
-) -> str | None:
-    """Create a temporary mod folder that patches the global string table."""
+    champion_name: str,
+    skin_name: str,
+    output_dir: Path,
+    locale: str | None = None,
+) -> Path | None:
+    """Create a temporary mod folder that patches the global stringtable."""
     champion_name = (champion_name or "").strip()
-    skin_label = (skin_label or "").strip()
-    if not champion_name or not skin_label or champion_name == skin_label:
+    skin_name = (skin_name or "").strip()
+    if not champion_name or not skin_name or champion_name == skin_name:
         return None
 
-    source_wad = _find_global_stringtable_wad(game_dir)
+    source_wad = _find_global_stringtable_wad(game_dir, locale=locale)
     if not source_wad:
-        log.info("[LoadingNameRST] Global stringtable WAD not found; skipping")
+        log.info("[LoadingName] Global stringtable WAD not found; skipping")
         return None
 
-    wad_extract = Path(tools_dir) / "wad-extract.exe"
-    wad_make = Path(tools_dir) / "wad-make.exe"
-    hashdict = Path(tools_dir) / "hashes.game.txt"
-    if not wad_extract.exists() or not wad_make.exists():
-        log.info("[LoadingNameRST] WAD tools missing; skipping")
+    output_dir = Path(output_dir)
+    tools_dir, checked_tool_dirs = _find_tools_dir(output_dir)
+    if not tools_dir:
+        log.info(
+            "[LoadingName] WAD tools missing; skipping. Checked: %s",
+            "; ".join(str(path) for path in checked_tool_dirs),
+        )
         return None
 
-    mod_dir = Path(mods_dir) / "_rose_loading_name_text"
+    wad_extract = tools_dir / "wad-extract.exe"
+    wad_make = tools_dir / "wad-make.exe"
+    hashdict = tools_dir / "hashes.game.txt"
+
+    mod_dir = output_dir / "_rose_loading_name_text"
     if mod_dir.exists():
         shutil.rmtree(mod_dir, ignore_errors=True)
     (mod_dir / "META").mkdir(parents=True, exist_ok=True)
     (mod_dir / "WAD").mkdir(parents=True, exist_ok=True)
 
     try:
-        cached_wad = _get_cached_wad(source_wad, champion_name, skin_label)
+        cached_wad = _get_cached_wad(source_wad, champion_name, skin_name, locale)
         out_wad = mod_dir / "WAD" / source_wad.name
         if cached_wad.exists():
             shutil.copy2(cached_wad, out_wad)
-            _write_info(mod_dir, champion_name, skin_label)
-            log.info("[LoadingNameRST] Reused cached stringtable override: %s", cached_wad.name)
-            return mod_dir.name
+            _write_info(mod_dir, champion_name, skin_name, locale)
+            log.info("[LoadingName] Reused cached stringtable override: %s", cached_wad.name)
+            return mod_dir
 
-        with tempfile.TemporaryDirectory(prefix="rose_loading_rst_") as tmp:
+        with tempfile.TemporaryDirectory(prefix="rose_loading_name_") as tmp:
             tmp_dir = Path(tmp)
             extract_dir = tmp_dir / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)
@@ -75,15 +91,16 @@ def create_loading_name_stringtable_mod(
             if hashdict.exists():
                 extract_cmd.append(str(hashdict))
             if _run_tool(extract_cmd) != 0:
+                shutil.rmtree(mod_dir, ignore_errors=True)
                 return None
 
             patched = 0
             for rst_path in extract_dir.rglob("*.stringtable"):
-                patched += _patch_rst_file(rst_path, champion_name, skin_label)
+                patched += _patch_rst_file(rst_path, champion_name, skin_name)
 
             if patched <= 0:
                 shutil.rmtree(mod_dir, ignore_errors=True)
-                log.info("[LoadingNameRST] No stringtable entries patched for %s", champion_name)
+                log.info("[LoadingName] No stringtable entries patched for %s", champion_name)
                 return None
 
             if _run_tool([str(wad_make), str(extract_dir), str(out_wad)]) != 0 or not out_wad.exists():
@@ -92,68 +109,129 @@ def create_loading_name_stringtable_mod(
 
         cached_wad.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(out_wad, cached_wad)
-        _write_info(mod_dir, champion_name, skin_label)
-        log.info("[LoadingNameRST] Created stringtable mod with %s patched entrie(s)", patched)
-        return mod_dir.name
+        _write_info(mod_dir, champion_name, skin_name, locale)
+        log.info("[LoadingName] Created stringtable mod with %s patched entrie(s)", patched)
+        return mod_dir
     except Exception as exc:
         shutil.rmtree(mod_dir, ignore_errors=True)
-        log.warning("[LoadingNameRST] Failed to create stringtable mod: %s", exc)
+        log.warning("[LoadingName] Failed to create stringtable mod: %s", exc)
         return None
 
 
-def _find_global_stringtable_wad(game_dir: Path | None) -> Path | None:
+def _find_global_stringtable_wad(game_dir: Path | None, locale: str | None = None) -> Path | None:
     if not game_dir:
         return None
 
     localized_dir = Path(game_dir) / "DATA" / "FINAL" / "Localized"
-    preferred = localized_dir / "Global.pt_BR.wad.client"
-    if preferred.exists():
-        return preferred
+    if not localized_dir.exists():
+        return None
 
-    candidates = sorted(localized_dir.glob("Global.*.wad.client")) if localized_dir.exists() else []
+    locale = (locale or "").strip()
+    if locale:
+        preferred = localized_dir / f"Global.{locale}.wad.client"
+        if preferred.exists():
+            return preferred
+
+    candidates = sorted(localized_dir.glob("Global.*.wad.client"))
     return candidates[0] if candidates else None
 
 
-def _patch_rst_file(rst_path: Path, champion_name: str, skin_label: str) -> int:
+def _should_replace(key: int | str, value: str, champion_name: str) -> bool:
+    if value != champion_name:
+        return False
+
+    if isinstance(key, str):
+        normalized_key = key.lower()
+        return (
+            normalized_key.startswith("game_character_displayname_")
+            or "game_character_displayname_" in normalized_key
+        )
+
+    # TODO: This integer-key fallback is broader than ideal. Narrow it to the
+    # loading-card display-name hash once the exact mapping is known.
+    if isinstance(key, int):
+        return True
+
+    return False
+
+
+def _find_tools_dir(output_dir: Path) -> tuple[Path | None, list[Path]]:
+    candidates: list[Path] = []
+
+    if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "injection" / "tools")
+        else:
+            base_dir = Path(sys.executable).parent
+            candidates.extend(
+                [
+                    base_dir / "injection" / "tools",
+                    base_dir / "_internal" / "injection" / "tools",
+                ]
+            )
+    else:
+        candidates.append(Path(__file__).resolve().parent.parent / "tools")
+
+    candidates.extend(
+        [
+            output_dir.parent / "tools",
+            get_injection_dir() / "tools",
+        ]
+    )
+
+    checked: list[Path] = []
+    seen: set[str] = set()
+    for tools_dir in candidates:
+        resolved = tools_dir.resolve() if tools_dir.exists() else tools_dir
+        key = str(resolved).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        checked.append(tools_dir)
+        if (tools_dir / "wad-extract.exe").exists() and (tools_dir / "wad-make.exe").exists():
+            return tools_dir, checked
+
+    return None, checked
+
+
+def _patch_rst_file(rst_path: Path, champion_name: str, skin_name: str) -> int:
     entries = _read_rst(rst_path)
     patched = 0
     for key, value in list(entries.items()):
         if _should_replace(key, value, champion_name):
-            entries[key] = skin_label
+            entries[key] = skin_name
             patched += 1
 
     if patched:
         rst_path.write_bytes(_write_rst(entries))
-        log.info("[LoadingNameRST] Patched %s entrie(s) in %s", patched, rst_path.name)
+        log.info("[LoadingName] Patched %s entrie(s) in %s", patched, rst_path.name)
     return patched
 
 
-def _should_replace(key: int, value: str, champion_name: str) -> bool:
-    return value in {champion_name, f"game_character_displayname_{champion_name}"}
-
-
-def _get_cached_wad(source_wad: Path, champion_name: str, skin_label: str) -> Path:
+def _get_cached_wad(source_wad: Path, champion_name: str, skin_name: str, locale: str | None) -> Path:
     stat = source_wad.stat()
     raw = "|".join(
         [
             CACHE_VERSION,
+            locale or "",
             source_wad.name,
             str(stat.st_size),
             str(stat.st_mtime_ns),
             champion_name,
-            skin_label,
+            skin_name,
         ]
     )
     digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()
     return get_user_data_dir() / "cache" / "loading-name-rst" / f"{digest}.wad.client"
 
 
-def _write_info(mod_dir: Path, champion_name: str, skin_label: str) -> None:
+def _write_info(mod_dir: Path, champion_name: str, skin_name: str, locale: str | None) -> None:
     info = {
         "Name": "Rose Loading Name Text",
         "Author": "Rose",
         "Version": "1.0",
-        "Description": f"Overrides {champion_name} loading name with {skin_label}.",
+        "Description": f"Overrides {champion_name} loading name with {skin_name}.",
+        "Locale": locale or "auto",
     }
     (mod_dir / "META" / "info.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -216,10 +294,10 @@ def _run_tool(cmd: Iterable[str]) -> int:
             timeout=60,
         )
         if proc.returncode != 0:
-            log.debug("[LoadingNameRST] Tool failed (%s): %s", proc.returncode, " ".join(cmd))
+            log.debug("[LoadingName] Tool failed (%s): %s", proc.returncode, " ".join(cmd))
             if proc.stderr:
-                log.debug("[LoadingNameRST] stderr: %s", proc.stderr[:500])
+                log.debug("[LoadingName] stderr: %s", proc.stderr[:500])
         return proc.returncode
     except Exception as exc:
-        log.debug("[LoadingNameRST] Tool execution failed: %s", exc)
+        log.debug("[LoadingName] Tool execution failed: %s", exc)
         return 1

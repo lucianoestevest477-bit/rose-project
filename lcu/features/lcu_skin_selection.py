@@ -47,6 +47,7 @@ class LCUSkinSelection:
                 LCU_API_TIMEOUT_S
             )
             if response and response.status_code in (200, 204):
+                log.info(f"LCU set_selected_skin success: action_id={action_id}, skin_id={skin_id}, status={response.status_code}")
                 return True
             else:
                 status_code = response.status_code if response else "None"
@@ -79,6 +80,7 @@ class LCUSkinSelection:
                 LCU_API_TIMEOUT_S
             )
             if response and response.status_code in (200, 204):
+                log.info(f"LCU set_my_selection_skin success: skin_id={skin_id}, status={response.status_code}")
                 return True
             else:
                 status_code = response.status_code if response else "None"
@@ -88,4 +90,3 @@ class LCUSkinSelection:
         except Exception as e:
             log.warning(f"LCU set_my_selection_skin exception: {e}")
             return False
-
