@@ -1,95 +1,49 @@
 # Rose Project
 
-Portable Windows build of Rose with the loading-screen skin-name hotfix restored.
-
 ## Download
 
-Download the latest executable package from:
+### Baixar executavel atualizado
 
-[Latest Release](https://github.com/lucianoestevest477-bit/rose-project/releases/latest)
+[Download Rose-Executavel-Atualizado.zip](https://github.com/lucianoestevest477-bit/rose-project/releases/download/v2026.04.28-loading-name-rst/Rose-Executavel-Atualizado.zip)
 
-Release asset:
+Esse ZIP contem o `Rose.exe` atualizado e a pasta `_internal` necessaria para o programa funcionar.
 
-`Rose-v2026.04.28-loading-name-rst.zip`
+Como usar:
 
-Extract the ZIP and run:
+1. Baixe `Rose-Executavel-Atualizado.zip`.
+2. Extraia a pasta.
+3. Execute `Rose.exe`.
 
-`Rose.exe`
+Nao baixe `Source code`; ele e apenas o codigo-fonte automatico do GitHub.
 
-## What Changed In This Version
+## Alteracoes desta versao
 
-- Restored the loading-screen name fallback so the loading card can show the selected skin name instead of only the champion name.
-- Added a locale-aware stringtable override for the loading name fallback.
-- Uses the active LCU locale, such as `pt_BR`, before falling back to other `Global.*.wad.client` files.
-- Fixed WAD tool discovery in the packaged build, so `wad-extract.exe` and `wad-make.exe` are resolved from `_internal\injection\tools`.
-- Keeps chroma labels clean by using the base English skin name instead of appending the chroma color suffix.
-- Preserves normal skin, chroma, custom mod, and party mod injection flows.
-- Removed temporary debug experiments from the final path:
-  - no `debug_loading_name_hash`
-  - no `debug_loading_name_log`
-  - no `debug_stop_overlay`
-  - no `LCU-RESTORE`
-  - no hardcoded loading-card hash override
+- Restaurado o fallback RST para mostrar o nome da skin selecionada na loading screen.
+- Stringtable agora e locale-aware e usa o locale detectado pela LCU, como `pt_BR`.
+- Corrigida a busca das WAD tools no build empacotado (`_internal\injection\tools`).
+- `_rose_loading_name_text` e criado como mod extra e incluido no `--mods` junto com a skin.
+- Mantido o fluxo normal de skin, chroma, custom mods e party mods.
+- Removidos experimentos temporarios: `debug_loading_name_hash`, `debug_loading_name_log`, `debug_stop_overlay`, `LCU-RESTORE` e hash hardcoded.
 
-## Loading Name Hotfix Notes
-1-Chroma without the color suffix
-Yes. We kept the chroma using display_name=english_skin_name or chroma_display_name, so the loading label uses the base skin name, not something like Azir (Pink).
+## Status dos pedidos do maintainer
 
-2-Locale without hardcoded pt_BR
-Yes. The code now uses state.lcu_language, detected from LCU. The lookup tries Global..wad.client first, for example Global.pt_BR.wad.client, Global.en_US.wad.client, etc., and only then falls back to Global.*.wad.client.
+- Chroma label: corrigido para usar o nome base da skin, sem sufixo da cor.
+- Idioma: corrigido para usar `state.lcu_language` e buscar `Global.<locale>.wad.client`.
+- Base/security fix: preservada na versao atual publicada.
+- RST: funcional e mais seguro, exigindo `value == champion_name`; ainda ha follow-up tecnico para estreitar o fallback de hash/int para o hash exato do loading-card quando esse mapeamento for conhecido.
 
-3-Rebase/base with the security fix
-Partially yes in practical terms: the current Rose-main version we published preserved the clean/safe base you were using. However, since the local Rose-main was not a Git repository, it was not a formal git rebase against upstream. It was an update/sync of the working local version to your GitHub.
+## Verificacao
 
-4-Safer RST
-Partially. We improved it a lot:
+- Build gerado com `.venv-build` usando `build_pyinstaller.py`.
+- `Rose.exe`, `mod-tools.exe`, `wad-extract.exe` e `wad-make.exe` verificados no `dist`.
+- Log de teste confirmou `[LoadingName] Created stringtable mod`, `_rose_loading_name_text` no `--mods` e `INJECTION COMPLETED`.
 
-requires value == champion_name;
-if the key is a readable string, it only replaces when it contains/starts with game_character_displayname_;
-it does not compare the value against game_character_displayname_;
-it does not use a hardcoded hash.
+## Integridade
 
-The caveat: for hash/int keys, there is still a fallback based on value == champion_name. It works, and it is what made the mod create _rose_loading_name_text, but it is still broader than ideal. The code itself has a TODO noting that this should be narrowed later to the exact loading-card display-name hash once that mapping is known.
+SHA256 do ZIP:
 
-So in summary: Chroma yes, locale yes, safe base yes in practice, RST functional but still with a technical follow-up pending before it fully matches the maintainer’s requested standard.
-The primary path is still normal LCU skin selection. The stringtable override is a fallback for cases where the client accepts the selection but the loading screen still resolves the displayed name to the default champion name.
+`DB5D000B3F6058E656F304804A7033CAB8673892766C26953AD97392A5CF521F`
 
-The fallback:
+## Aviso legal
 
-- finds `DATA\FINAL\Localized\Global.<locale>.wad.client` using the detected LCU locale;
-- patches matching stringtable entries where the value equals the champion name;
-- creates an extra CSLOL mod named `_rose_loading_name_text`;
-- adds that mod to the overlay together with the selected skin mod.
-
-Current follow-up:
-
-- the integer/hash fallback is intentionally functional but broader than ideal;
-- it should be narrowed later to the exact loading-card display-name hash once that mapping is known.
-
-## Requirements
-
-- Windows 10 or Windows 11
-- League of Legends installed
-- Run Rose as Administrator when needed
-- Extract the ZIP before running `Rose.exe`
-
-## Build Verification
-
-The latest local build was validated with:
-
-- `build_pyinstaller.py` using `.venv-build`
-- `Rose.exe` generated in `dist\Rose`
-- required CSLOL tools present:
-  - `mod-tools.exe`
-  - `wad-extract.exe`
-  - `wad-make.exe`
-
-Runtime test logs confirmed:
-
-- `[LoadingName] Created stringtable mod`
-- `_rose_loading_name_text` included in `--mods`
-- `INJECTION COMPLETED`
-
-## Legal Notice
-
-This project is not affiliated with Riot Games. Use at your own risk. Rose changes local client-side assets only and does not provide gameplay advantage.
+Este projeto nao e afiliado a Riot Games. Use por sua conta e risco. Rose altera apenas assets locais do cliente e nao oferece vantagem de gameplay.
